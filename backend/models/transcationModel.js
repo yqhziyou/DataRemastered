@@ -60,6 +60,23 @@ const calculateRiskRate = async (connection, strategyType, currentPrice, strikeP
  * @param {Object} params - the parameters containing the transaction information
  */
 const insertTransaction = async (connection, params) => {
+   
+    const requiredFields = [
+        'userId',
+        'stockId',
+        'strategyType',
+        'strikePrice',
+        'premium',
+        'maturityTime',
+        'stockQuantity'
+    ];
+
+    for (const field of requiredFields) {
+        if (params[field] == null) { 
+            throw new Error(`Missing or null value for required field: ${field}`);
+        }
+    }
+
     try {
         const result = await connection.execute(
             `BEGIN transaction_pkg.insert_transaction(
@@ -88,8 +105,9 @@ const insertTransaction = async (connection, params) => {
 };
 
 
+
 /**
- * 查询用户交易记录
+ * query information
  * @param {Object} connection - database connection object
  * @param {Number} userId - user ID
  */
@@ -128,8 +146,7 @@ const calculateAndStoreTransaction = async (params) => {
     let connection;
     try {
         connection = await getConnection();
-
-        // 调用盈亏平衡点计算
+        
         const breakeven = await calculateBreakeven(
             connection,
             params.strategyType,

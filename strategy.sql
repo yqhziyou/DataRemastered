@@ -139,7 +139,7 @@ CREATE OR REPLACE PACKAGE transaction_pkg IS
         p_current_price NUMBER,
         p_strike_price NUMBER,
         p_premium NUMBER
-    ) RETURN NUMBER; -- 在这里声明 calculate_risk_rate
+    ) RETURN NUMBER; --
 END transaction_pkg;
 /
 
