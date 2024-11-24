@@ -1,5 +1,5 @@
 import express from "express";
-import { validate, loginUser, calculator } from "../controllers/mainController.js";
+import { validate, loginUser, calculator, auditLog } from "../controllers/mainController.js";
 
 const router = express.Router();
 
@@ -11,5 +11,8 @@ router.post("/login", loginUser);
 
 // Transaction calculator endpoint
 router.post("/calculate", calculator);
+
+//
+router.get("/audit", auditLog);
 
 export default router;

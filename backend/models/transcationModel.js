@@ -197,5 +197,70 @@ const calculateAndStoreTransaction = async (params) => {
     }
 };
 
+/**
+ * Set the role for the current user and fetch audit logs
+ * @param {Number} userId - The user ID to set the role and fetch logs for
+ * @returns {Array} - The fetched audit logs
+ */
+const setRoleAndGetAuditLogs = async (userId) => {
+    let connection;
+    try {
+        connection = await getConnection();
 
-export default calculateAndStoreTransaction;
+        userId = Number(userId);
+        // Step 1: Fetch the user's role and set it in the global context
+        const userRoleResult = await connection.execute(
+            `SELECT role FROM users WHERE user_id = :user_id`,
+            { user_id: userId }
+        );
+
+        if (!userRoleResult.rows || userRoleResult.rows.length === 0) {
+            throw new Error(`No user found with ID: ${userId}`);
+        }
+
+        const userRole = userRoleResult.rows[0][0]; // Assuming the role is in the first column
+        console.log(`User role for user ID ${userId}: ${userRole}`);
+
+        // Step 2: Set the role in the database package (simulating a global variable in PL/SQL)
+        await connection.execute(
+            `BEGIN transaction_pkg.set_current_user_role(:user_id); END;`,
+            { user_id: userId }
+        );
+        console.log(`Role set in transaction_pkg for user ID ${userId}`);
+
+        // Step 3: Fetch audit logs using the user's role
+        const auditLogsResult = await connection.execute(
+            `BEGIN transaction_pkg.get_all_audit_logs(:result); END;`,
+            {
+                result: { dir: oracledb.BIND_OUT, type: oracledb.CURSOR },
+            }
+        );
+
+        const resultSet = auditLogsResult.outBinds.result;
+        const auditLogs = [];
+        let row;
+
+        while ((row = await resultSet.getRow())) {
+            auditLogs.push(row); // Push each row into the array
+        }
+        await resultSet.close(); // Close the cursor
+        console.log('Audit logs fetched successfully');
+
+        return auditLogs; // Return the array of audit logs
+    } catch (err) {
+        console.error(`Error in setRoleAndGetAuditLogs: ${err.message}`);
+        throw err;
+    } finally {
+        if (connection) {
+            try {
+                await connection.close();
+            } catch (closeErr) {
+                console.error(`Error closing connection: ${closeErr.message}`);
+            }
+        }
+    }
+};
+
+
+
+export {calculateAndStoreTransaction,setRoleAndGetAuditLogs };

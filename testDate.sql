@@ -35,4 +35,8 @@ VALUES (seq_audit_log_id.NEXTVAL, 'INSERT', 'transactions', SYSTIMESTAMP, 1);
 INSERT INTO audit_logs (log_id, action, table_name, timestamp, user_id)
 VALUES (seq_audit_log_id.NEXTVAL, 'INSERT', 'transactions', SYSTIMESTAMP, 2);
 
+
+
+INSERT INTO users (user_id, password, username, email, created_at,role)
+VALUES (9999,9999,'admin','yqhziyou13@gmail.com',SYSTIMESTAMP,'Admin');
 commit;

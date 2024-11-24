@@ -12,6 +12,7 @@ const Calculator = () => {
         currentPrice: "",
     });
     const [result, setResult] = useState(null);
+    const [auditLog, setAuditLog] = useState(null);
 
     const handleChange = (e) => {
         const { name, value } = e.target;
@@ -47,6 +48,21 @@ const Calculator = () => {
             setResult(data);
         } catch (error) {
             setResult({ success: false, error: "Network error" });
+        }
+    };
+
+    const handleFetchAuditLog = async () => {
+        if (!formData.userId) {
+            setAuditLog({ success: false, error: "User ID is required to fetch audit log" });
+            return;
+        }
+
+        try {
+            const response = await fetch(`http://localhost:9999/api/audit?id=${formData.userId}`);
+            const data = await response.json();
+            setAuditLog(data);
+        } catch (error) {
+            setAuditLog({ success: false, error: "Network error while fetching audit log" });
         }
     };
 
@@ -121,11 +137,45 @@ const Calculator = () => {
             <button onClick={handleCalculate} style={{ padding: "10px 20px", marginTop: "10px" }}>
                 Calculate
             </button>
+            <button onClick={handleFetchAuditLog} style={{ padding: "10px 20px", marginLeft: "10px", marginTop: "10px" }}>
+                Fetch Audit Log
+            </button>
             {result && (
                 <div style={{ marginTop: "20px" }}>
                     <p>Success: {result.success ? "Yes" : "No"}</p>
                     <p>Message: {result.message || result.error}</p>
                     {result.data && <pre>{JSON.stringify(result.data, null, 2)}</pre>}
+                </div>
+            )}
+            {auditLog && (
+                <div style={{ marginTop: "20px" }}>
+                    <h3>Audit Log</h3>
+                    {auditLog.success ? (
+                        <table style={{ width: "100%", border: "1px solid black" }}>
+                            <thead>
+                            <tr>
+                                <th>ID</th>
+                                <th>Action</th>
+                                <th>Table</th>
+                                <th>Timestamp</th>
+                                <th>User ID</th>
+                            </tr>
+                            </thead>
+                            <tbody>
+                            {auditLog.data.map(([id, action, table, timestamp, userId]) => (
+                                <tr key={id}>
+                                    <td>{id}</td>
+                                    <td>{action}</td>
+                                    <td>{table}</td>
+                                    <td>{new Date(timestamp).toLocaleString()}</td>
+                                    <td>{userId}</td>
+                                </tr>
+                            ))}
+                            </tbody>
+                        </table>
+                    ) : (
+                        <p>Error: {auditLog.error}</p>
+                    )}
                 </div>
             )}
         </div>

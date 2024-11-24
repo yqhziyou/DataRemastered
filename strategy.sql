@@ -7,6 +7,10 @@ CREATE TABLE users (
                        created_at TIMESTAMP DEFAULT SYSTIMESTAMP
 );
 
+ALTER TABLE users
+    ADD role VARCHAR2(20) DEFAULT 'User' NOT NULL;
+
+
 CREATE TABLE stocks (
                         stock_id NUMBER PRIMARY KEY,
                         ticker VARCHAR2(10) UNIQUE NOT NULL,
@@ -106,8 +110,17 @@ END;
 /
 
 
+
+
 -- **7. Create Package**
 CREATE OR REPLACE PACKAGE transaction_pkg IS
+    -- 全局变量
+    current_user_role VARCHAR2(20);
+
+    PROCEDURE set_current_user_role (
+        p_user_id NUMBER
+    );
+
     PROCEDURE insert_transaction (
         p_user_id NUMBER,
         p_stock_id NUMBER,
@@ -139,13 +152,36 @@ CREATE OR REPLACE PACKAGE transaction_pkg IS
         p_current_price NUMBER,
         p_strike_price NUMBER,
         p_premium NUMBER
-    ) RETURN NUMBER; --
+    ) RETURN NUMBER;
+
+    PROCEDURE get_all_audit_logs (
+        p_result OUT SYS_REFCURSOR
+    );
+
 END transaction_pkg;
 /
 
-/
-
 CREATE OR REPLACE PACKAGE BODY transaction_pkg IS
+
+    -- 初始化全局变量
+    PROCEDURE set_current_user_role (
+        p_user_id NUMBER
+    ) IS
+    BEGIN
+        SELECT role INTO current_user_role
+        FROM users
+        WHERE user_id = p_user_id;
+
+        DBMS_OUTPUT.PUT_LINE('User role set to: ' || current_user_role);
+    EXCEPTION
+        WHEN NO_DATA_FOUND THEN
+            DBMS_OUTPUT.PUT_LINE('No user found with the provided ID.');
+            current_user_role := NULL;
+        WHEN OTHERS THEN
+            DBMS_OUTPUT.PUT_LINE('Error setting user role: ' || SQLERRM);
+            current_user_role := NULL;
+    END set_current_user_role;
+
     PROCEDURE insert_transaction (
         p_user_id NUMBER,
         p_stock_id NUMBER,
@@ -189,19 +225,15 @@ CREATE OR REPLACE PACKAGE BODY transaction_pkg IS
     BEGIN
         CASE p_strategy_type
             WHEN 'Protective Put' THEN
-                -- For Protective Put, breakeven = Strike Price + Premium
                 RETURN p_strike_price + p_premium;
             WHEN 'Covered Call' THEN
-                -- For Covered Call, breakeven = Purchase Price - Premium
                 RETURN p_current_price - p_premium;
             WHEN 'Cash-Secured Put' THEN
-                -- For Cash-Secured Put, breakeven = Strike Price - Premium
                 RETURN p_strike_price - p_premium;
             ELSE
-                RETURN NULL; -- Return NULL if strategy type is invalid
+                RETURN NULL;
             END CASE;
     END calculate_breakeven;
-
 
     FUNCTION calculate_strategy_value (
         p_strategy_type VARCHAR2,
@@ -240,8 +272,23 @@ CREATE OR REPLACE PACKAGE BODY transaction_pkg IS
                 RETURN NULL;
             END CASE;
     END calculate_risk_rate;
+
+    PROCEDURE get_all_audit_logs (
+        p_result OUT SYS_REFCURSOR
+    ) IS
+    BEGIN
+        IF current_user_role = 'Admin' THEN
+            OPEN p_result FOR
+                SELECT * FROM audit_logs;
+        ELSE
+            DBMS_OUTPUT.PUT_LINE('Access Denied: Only Admin can view audit logs.');
+            RAISE_APPLICATION_ERROR(-20001, 'Access Denied: Only Admin can view audit logs.');
+        END IF;
+    END get_all_audit_logs;
+
 END transaction_pkg;
 /
+
 
 
 

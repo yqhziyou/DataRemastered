@@ -1,4 +1,4 @@
-import calculateAndStoreTransaction  from "../models/transcationModel.js";
+import {calculateAndStoreTransaction,setRoleAndGetAuditLogs }  from "../models/transcationModel.js";
 import { register, login } from "../services/userService.js";
 
 const validate = async (req, res) => {
@@ -91,4 +91,25 @@ const calculator = async (req, res) => {
     }
 };
 
-export { validate, loginUser, calculator };
+const auditLog = async (req, res) => {
+    const id = req.query.id;
+    console.log("controller layer id:",id);
+    try{
+        const data = await setRoleAndGetAuditLogs(id);
+        return res.status(200).json({
+            success: true,
+            message: "get audit log successfully",
+            data: data,
+        })
+    } catch (error) {
+        // catch the error thrown by the main function and return server error
+        console.error("Error in getAuditLog:", error.message);
+
+        return res.status(500).json({
+            success: false,
+            error: "Server error during getAuditLog processing",
+        })
+    }
+}
+
+export { validate, loginUser, calculator, auditLog };
