@@ -114,7 +114,7 @@ END;
 
 -- **7. Create Package**
 CREATE OR REPLACE PACKAGE transaction_pkg IS
-    -- 全局变量
+    --global variable
     current_user_role VARCHAR2(20);
 
     PROCEDURE set_current_user_role (
