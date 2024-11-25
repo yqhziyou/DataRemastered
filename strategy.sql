@@ -163,7 +163,7 @@ END transaction_pkg;
 
 CREATE OR REPLACE PACKAGE BODY transaction_pkg IS
 
-    -- 初始化全局变量
+    -- initialize global variable
     PROCEDURE set_current_user_role (
         p_user_id NUMBER
     ) IS
