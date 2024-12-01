@@ -2,7 +2,5 @@
 <project version="4">
   <component name="SqlDialectMappings">
     <file url="file://$PROJECT_DIR$/formal-script.sql" dialect="Oracle" />
-    <file url="file://$PROJECT_DIR$/strategy.sql" dialect="Oracle" />
-    <file url="file://$PROJECT_DIR$/testDate.sql" dialect="Oracle" />
   </component>
 </project>
