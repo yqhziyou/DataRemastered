@@ -18,7 +18,7 @@ router.post("/stock", setStockController);
 
 router.post("/insert", insertTransactionController);
 
-router.get("/info", getUserTransactionsController);
+router.post("/info", getUserTransactionsController);
 
 router.get("/stockList", getStocksController);
 
