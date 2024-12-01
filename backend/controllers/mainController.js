@@ -1,4 +1,4 @@
-import {calculateAndStoreTransaction,setRoleAndGetAuditLogs,setStock,insertTransaction,getUserTransactions,getStocks }  from "../models/transcationModel.js";
+import {calculateAndStoreTransaction,setRoleAndGetAuditLogs,setStock,insertTransaction,getUserTransactions,getStocks,getAllStrategyNames }  from "../models/transcationModel.js";
 import { register, login } from "../services/userService.js";
 
 const validate = async (req, res) => {
@@ -172,4 +172,20 @@ const getStocksController = async (req, res) => {
     }
 };
 
-export { validate, loginUser, calculator, auditLog,setStockController,insertTransactionController,getUserTransactionsController,getStocksController };
+const getAllStrategyNamesController = async (req, res) => {
+    try {
+        const strategyNames = await getAllStrategyNames(); 
+        res.status(200).json({
+            success: true,
+            data: strategyNames, 
+        });
+    } catch (error) {
+        console.error(`Error in getAllStrategyNamesController: ${error.message}`);
+        res.status(500).json({
+            success: false,
+            message: "Error fetching strategy names",
+        });
+    }
+};
+
+export { validate, loginUser, calculator, auditLog,setStockController,insertTransactionController,getUserTransactionsController,getStocksController,getAllStrategyNamesController };

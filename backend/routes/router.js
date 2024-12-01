@@ -1,5 +1,5 @@
 import express from "express";
-import { validate, loginUser, calculator, auditLog,setStockController,insertTransactionController,getUserTransactionsController,getStocksController } from "../controllers/mainController.js";
+import { validate, loginUser, calculator, auditLog,setStockController,insertTransactionController,getUserTransactionsController,getStocksController,getAllStrategyNamesController } from "../controllers/mainController.js";
 
 const router = express.Router();
 
@@ -21,6 +21,10 @@ router.post("/insert", insertTransactionController);
 router.post("/info", getUserTransactionsController);
 
 router.get("/stockList", getStocksController);
+
+router.get('/strategies', getAllStrategyNamesController);
+
+
 
 export default router;
 

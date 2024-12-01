@@ -49,5 +49,4 @@ DECLARE
     result SYS_REFCURSOR;
 BEGIN
     transaction_pkg.get_user_transactions(123, result);
-    -- 打印结果，确认数据是否正确返回
 END;

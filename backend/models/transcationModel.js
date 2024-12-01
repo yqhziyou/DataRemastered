@@ -295,6 +295,34 @@ const setRoleAndGetAuditLogs = async (userId) => {
     }
 };
 
+const getAllStrategyNames = async () => {
+    let connection;
+    try {
+        connection = await getConnection(); 
+
+        const result = await connection.execute(
+            `SELECT strategy_name FROM strategies`
+        );
+
+        const strategyNames = result.rows.map(row => row[0]); 
+        console.log('Strategy names fetched successfully:', strategyNames);
+        return strategyNames; 
+    } catch (err) {
+        console.error(`Error in getAllStrategyNames: ${err.message}`);
+        throw err;
+    } finally {
+        if (connection) {
+            try {
+                await connection.close();
+            } catch (closeErr) {
+                console.error(`Error closing connection: ${closeErr.message}`);
+            }
+        }
+    }
+};
 
 
-export {calculateAndStoreTransaction,setRoleAndGetAuditLogs,setStock,insertTransaction,getUserTransactions,getStocks };
+
+
+
+export {calculateAndStoreTransaction,setRoleAndGetAuditLogs,setStock,insertTransaction,getUserTransactions,getStocks,getAllStrategyNames };

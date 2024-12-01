@@ -1,8 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 
-const StrategyTypeOptions = ['Protective Put', 'Covered Call', 'Cash-Secured Put'];
-
 function App() {
     return (
         <div>
@@ -50,6 +48,21 @@ function CalculateComponent() {
     const [premium, setPremium] = useState('');
     const [currentPrice, setCurrentPrice] = useState('');
     const [response, setResponse] = useState(null);
+    const [strategyOptions, setStrategyOptions] = useState([]);
+
+    useEffect(() => {
+        const fetchStrategies = async () => {
+            try {
+                const res = await axios.get('http://localhost:9999/api/strategies');
+                if (res.data.success) {
+                    setStrategyOptions(res.data.data);
+                }
+            } catch (error) {
+                console.error(error);
+            }
+        };
+        fetchStrategies();
+    }, []);
 
     const handleCalculate = async () => {
         try {
@@ -70,7 +83,7 @@ function CalculateComponent() {
             <h2>Calculate Strategy</h2>
             <select value={strategyType} onChange={(e) => setStrategyType(e.target.value)}>
                 <option value="">Select Strategy Type</option>
-                {StrategyTypeOptions.map((option, index) => (
+                {strategyOptions.map((option, index) => (
                     <option key={index} value={option}>{option}</option>
                 ))}
             </select>
@@ -127,6 +140,21 @@ function InsertTransactionComponent() {
     const [maturityTime, setMaturityTime] = useState('');
     const [stockQuantity, setStockQuantity] = useState('');
     const [response, setResponse] = useState(null);
+    const [strategyOptions, setStrategyOptions] = useState([]);
+
+    useEffect(() => {
+        const fetchStrategies = async () => {
+            try {
+                const res = await axios.get('http://localhost:9999/api/strategies');
+                if (res.data.success) {
+                    setStrategyOptions(res.data.data);
+                }
+            } catch (error) {
+                console.error(error);
+            }
+        };
+        fetchStrategies();
+    }, []);
 
     const handleInsertTransaction = async () => {
         try {
@@ -155,7 +183,7 @@ function InsertTransactionComponent() {
             <input type="number" placeholder="Stock ID" value={stockId} onChange={(e) => setStockId(e.target.value)} />
             <select value={strategyType} onChange={(e) => setStrategyType(e.target.value)}>
                 <option value="">Select Strategy Type</option>
-                {StrategyTypeOptions.map((option, index) => (
+                {strategyOptions.map((option, index) => (
                     <option key={index} value={option}>{option}</option>
                 ))}
             </select>

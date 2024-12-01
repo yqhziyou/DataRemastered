@@ -1,4 +1,9 @@
--- **1. Create Tables**
+-- Create Sequences
+CREATE SEQUENCE seq_stock_id START WITH 1 INCREMENT BY 1;
+CREATE SEQUENCE seq_transaction_id START WITH 1 INCREMENT BY 1;
+CREATE SEQUENCE seq_audit_log_id START WITH 1 INCREMENT BY 1;
+
+-- Create Tables
 CREATE TABLE users (
                        user_id NUMBER PRIMARY KEY,
                        password VARCHAR2(255) NOT NULL,
@@ -9,13 +14,12 @@ CREATE TABLE users (
 
 ALTER TABLE users
     ADD role VARCHAR2(20) DEFAULT 'User' NOT NULL;
-    
 
 CREATE TABLE stocks (
                         stock_id NUMBER PRIMARY KEY,
                         ticker VARCHAR2(10) UNIQUE NOT NULL,
                         current_price NUMBER(10,2) NOT NULL,
-                        volatility NUMBER(5,2) NOT NULL,
+                        volatility NUMBER(5,2) DEFAULT 0.00,
                         updated_at TIMESTAMP DEFAULT SYSTIMESTAMP
 );
 
@@ -45,11 +49,9 @@ CREATE TABLE audit_logs (
                             user_id NUMBER REFERENCES users(user_id)
 );
 
--- **2. Create Sequences**
-CREATE SEQUENCE seq_transaction_id START WITH 1 INCREMENT BY 1;
-CREATE SEQUENCE seq_audit_log_id START WITH 1 INCREMENT BY 1;
 
--- **3. Create Triggers**
+
+-- Create Triggers
 CREATE OR REPLACE TRIGGER trg_transaction_id
     BEFORE INSERT ON transactions
     FOR EACH ROW
@@ -67,10 +69,10 @@ BEGIN
 END;
 /
 
--- **4. Create Indexes**
+-- Create Indexes
 CREATE INDEX idx_transaction_time ON transactions(created_at);
 
--- **5. Create Procedures**
+-- Create Procedures
 CREATE OR REPLACE PROCEDURE insert_transaction (
     p_user_id NUMBER,
     p_stock_id NUMBER,
@@ -80,8 +82,7 @@ CREATE OR REPLACE PROCEDURE insert_transaction (
     p_maturity_time NUMBER,
     p_stock_quantity NUMBER,
     p_transaction_id OUT NUMBER
-)
-    IS
+) IS
 BEGIN
     INSERT INTO transactions (user_id, stock_id, strategy_type, strike_price, premium, maturity_time, stock_quantity, created_at)
     VALUES (p_user_id, p_stock_id, p_strategy_type, p_strike_price, p_premium, p_maturity_time, p_stock_quantity, SYSTIMESTAMP)
@@ -99,8 +100,7 @@ END;
 CREATE OR REPLACE PROCEDURE get_user_transactions (
     p_user_id NUMBER,
     p_result OUT SYS_REFCURSOR
-)
-    IS
+) IS
 BEGIN
     OPEN p_result FOR
         SELECT transaction_id, strategy_type, strike_price, premium, stock_quantity, created_at
@@ -109,16 +109,45 @@ BEGIN
 END;
 /
 
+CREATE OR REPLACE PROCEDURE upsert_stock (
+    p_ticker VARCHAR2,
+    p_current_price NUMBER,
+    p_volatility NUMBER,
+    p_stock_id OUT NUMBER
+) IS
+BEGIN
+    -- Check if the record exists
+    SELECT stock_id INTO p_stock_id
+    FROM stocks
+    WHERE ticker = p_ticker;
 
--- **7. Create Package**
+    -- Update if it exists
+    UPDATE stocks
+    SET current_price = p_current_price,
+        volatility = p_volatility,
+        updated_at = SYSTIMESTAMP
+    WHERE stock_id = p_stock_id;
+
+    DBMS_OUTPUT.PUT_LINE('Stock updated with ID: ' || p_stock_id);
+EXCEPTION
+    WHEN NO_DATA_FOUND THEN
+        -- Insert if it does not exist
+        INSERT INTO stocks (stock_id, ticker, current_price, volatility, updated_at)
+        VALUES (seq_stock_id.NEXTVAL, p_ticker, p_current_price, p_volatility, SYSTIMESTAMP)
+        RETURNING stock_id INTO p_stock_id;
+
+        DBMS_OUTPUT.PUT_LINE('New stock inserted with ID: ' || p_stock_id);
+    WHEN OTHERS THEN
+        DBMS_OUTPUT.PUT_LINE('Error in upsert_stock procedure: ' || SQLERRM);
+        RAISE;
+END;
+/
+
+-- Create Package
 CREATE OR REPLACE PACKAGE transaction_pkg IS
-    --global variable
     current_user_role VARCHAR2(20);
 
-    PROCEDURE set_current_user_role (
-        p_user_id NUMBER
-    );
-
+    PROCEDURE set_current_user_role (p_user_id NUMBER);
     PROCEDURE insert_transaction (
         p_user_id NUMBER,
         p_stock_id NUMBER,
@@ -129,10 +158,7 @@ CREATE OR REPLACE PACKAGE transaction_pkg IS
         p_stock_quantity NUMBER,
         p_transaction_id OUT NUMBER
     );
-    PROCEDURE get_user_transactions (
-        p_user_id NUMBER,
-        p_result OUT SYS_REFCURSOR
-    );
+    PROCEDURE get_user_transactions (p_user_id NUMBER, p_result OUT SYS_REFCURSOR);
     FUNCTION calculate_breakeven (
         p_strategy_type VARCHAR2,
         p_current_price NUMBER,
@@ -151,20 +177,12 @@ CREATE OR REPLACE PACKAGE transaction_pkg IS
         p_strike_price NUMBER,
         p_premium NUMBER
     ) RETURN NUMBER;
-
-    PROCEDURE get_all_audit_logs (
-        p_result OUT SYS_REFCURSOR
-    );
-
+    PROCEDURE get_all_audit_logs (p_result OUT SYS_REFCURSOR);
 END transaction_pkg;
 /
 
 CREATE OR REPLACE PACKAGE BODY transaction_pkg IS
-
-    -- initialize global variable
-    PROCEDURE set_current_user_role (
-        p_user_id NUMBER
-    ) IS
+    PROCEDURE set_current_user_role (p_user_id NUMBER) IS
     BEGIN
         SELECT role INTO current_user_role
         FROM users
@@ -178,7 +196,7 @@ CREATE OR REPLACE PACKAGE BODY transaction_pkg IS
         WHEN OTHERS THEN
             DBMS_OUTPUT.PUT_LINE('Error setting user role: ' || SQLERRM);
             current_user_role := NULL;
-    END set_current_user_role;
+    END;
 
     PROCEDURE insert_transaction (
         p_user_id NUMBER,
@@ -201,18 +219,15 @@ CREATE OR REPLACE PACKAGE BODY transaction_pkg IS
             ROLLBACK;
             p_transaction_id := NULL;
             DBMS_OUTPUT.PUT_LINE('Error inserting transaction: ' || SQLERRM);
-    END insert_transaction;
+    END;
 
-    PROCEDURE get_user_transactions (
-        p_user_id NUMBER,
-        p_result OUT SYS_REFCURSOR
-    ) IS
+    PROCEDURE get_user_transactions (p_user_id NUMBER, p_result OUT SYS_REFCURSOR) IS
     BEGIN
         OPEN p_result FOR
             SELECT transaction_id, strategy_type, strike_price, premium, stock_quantity, created_at
             FROM transactions
             WHERE user_id = p_user_id;
-    END get_user_transactions;
+    END;
 
     FUNCTION calculate_breakeven (
         p_strategy_type VARCHAR2,
@@ -231,7 +246,7 @@ CREATE OR REPLACE PACKAGE BODY transaction_pkg IS
             ELSE
                 RETURN NULL;
             END CASE;
-    END calculate_breakeven;
+    END;
 
     FUNCTION calculate_strategy_value (
         p_strategy_type VARCHAR2,
@@ -250,7 +265,7 @@ CREATE OR REPLACE PACKAGE BODY transaction_pkg IS
             ELSE
                 RETURN NULL;
             END CASE;
-    END calculate_strategy_value;
+    END;
 
     FUNCTION calculate_risk_rate (
         p_strategy_type VARCHAR2,
@@ -269,11 +284,9 @@ CREATE OR REPLACE PACKAGE BODY transaction_pkg IS
             ELSE
                 RETURN NULL;
             END CASE;
-    END calculate_risk_rate;
+    END;
 
-    PROCEDURE get_all_audit_logs (
-        p_result OUT SYS_REFCURSOR
-    ) IS
+    PROCEDURE get_all_audit_logs (p_result OUT SYS_REFCURSOR) IS
     BEGIN
         IF current_user_role = 'Admin' THEN
             OPEN p_result FOR
@@ -282,12 +295,21 @@ CREATE OR REPLACE PACKAGE BODY transaction_pkg IS
             DBMS_OUTPUT.PUT_LINE('Access Denied: Only Admin can view audit logs.');
             RAISE_APPLICATION_ERROR(-20001, 'Access Denied: Only Admin can view audit logs.');
         END IF;
-    END get_all_audit_logs;
-
+    END;
 END transaction_pkg;
 /
+INSERT INTO users (user_id, password, username, email, created_at,role)
+VALUES (9999,9999,'admin','yqhziyou13@gmail.com',SYSTIMESTAMP,'Admin');
+INSERT INTO strategies (strategy_id, strategy_name, description) VALUES (1, 'Protective Put', 'Protective put strategy');
+INSERT INTO strategies (strategy_id, strategy_name, description) VALUES (2, 'Covered Call', 'Covered call strategy');
+INSERT INTO strategies (strategy_id, strategy_name, description) VALUES (3, 'Cash-Secured Put', 'Cash-secured put strategy');
 
+INSERT INTO stocks (stock_id, ticker, current_price, volatility, updated_at)
+VALUES (1, 'AAPL', 150.50, 0.25, SYSTIMESTAMP);
 
+INSERT INTO stocks (stock_id, ticker, current_price, volatility, updated_at)
+VALUES (2, 'GOOGL', 2750.75, 0.18, SYSTIMESTAMP);
 
-
-
+INSERT INTO stocks (stock_id, ticker, current_price, volatility, updated_at)
+VALUES (3, 'AMZN', 3500.20, 0.30, SYSTIMESTAMP);
+commit;
