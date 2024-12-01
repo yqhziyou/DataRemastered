@@ -40,3 +40,14 @@ VALUES (seq_audit_log_id.NEXTVAL, 'INSERT', 'transactions', SYSTIMESTAMP, 2);
 INSERT INTO users (user_id, password, username, email, created_at,role)
 VALUES (9999,9999,'admin','yqhziyou13@gmail.com',SYSTIMESTAMP,'Admin');
 commit;
+
+UPDATE users
+SET ROLE = 'Admin'
+WHERE USER_ID = 123;
+
+DECLARE
+    result SYS_REFCURSOR;
+BEGIN
+    transaction_pkg.get_user_transactions(123, result);
+    -- 打印结果，确认数据是否正确返回
+END;

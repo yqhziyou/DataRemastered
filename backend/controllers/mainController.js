@@ -1,4 +1,4 @@
-import {calculateAndStoreTransaction,setRoleAndGetAuditLogs }  from "../models/transcationModel.js";
+import {calculateAndStoreTransaction,setRoleAndGetAuditLogs,setStock,insertTransaction,getUserTransactions,getStocks }  from "../models/transcationModel.js";
 import { register, login } from "../services/userService.js";
 
 const validate = async (req, res) => {
@@ -48,26 +48,18 @@ const loginUser = async (req, res) => {
 const calculator = async (req, res) => {
     console.log('Request body:', req.body);
     const {
-        userId,
-        stockId,
         strategyType,
         strikePrice,
         premium,
-        maturityTime,
-        stockQuantity,
         currentPrice,
     } = req.body;
 
     try {
         // parameter type conversion
         const parsedData = {
-            userId: parseInt(userId, 10), // convert to integer
-            stockId: parseInt(stockId, 10), // convert to integer
             strategyType: String(strategyType), // convert to string
             strikePrice: parseFloat(strikePrice), // convert to float
             premium: parseFloat(premium), // convert to float
-            maturityTime: parseInt(maturityTime, 10), // convert to integer
-            stockQuantity: parseInt(stockQuantity, 10), // convert to integer
             currentPrice: parseFloat(currentPrice), // convert to float
         };
 
@@ -112,4 +104,72 @@ const auditLog = async (req, res) => {
     }
 }
 
-export { validate, loginUser, calculator, auditLog };
+const setStockController = async (req, res) => {
+    try {
+        const { ticker, currentPrice, volatility } = req.body;
+        const stockId = await setStock({ ticker, currentPrice, volatility });
+        res.status(200).json({
+            success: true,
+            stockId,
+        });
+    } catch (error) {
+        console.error(`Error in setStockController: ${error.message}`);
+        res.status(500).json({
+            success: false,
+            message: error.message,
+        });
+    }
+};
+
+const insertTransactionController = async (req, res) => {
+    try {
+        const params = req.body;
+        const transactionId = await insertTransaction(await params);
+        res.status(200).json({
+            success: true,
+            transactionId,
+        });
+    } catch (error) {
+        console.error(`Error in insertTransactionController: ${error.message}`);
+        res.status(500).json({
+            success: false,
+            message: error.message,
+        });
+    }
+};
+
+const getUserTransactionsController = async (req, res) => {
+    try {
+        const { userId } = req.body; 
+        console.log(`controller layer id:${userId}`);
+        const transactions = await getUserTransactions(userId);
+        res.status(200).json({
+            success: true,
+            data: transactions,
+        });
+    } catch (error) {
+        console.error(`Error in getUserTransactionsController: ${error.message}`);
+        res.status(500).json({
+            success: false,
+            message: error.message,
+        });
+    }
+};
+
+const getStocksController = async (req, res) => {
+    try {
+        const stocks = await getStocks();
+        res.status(200).json({
+            success: true,
+            data: stocks,
+        });
+    } catch (error) {
+        console.error(`Error in getStocksController: ${error.message}`);
+        res.status(500).json({
+            success: false,
+            message: error.message,
+        });
+    }
+};
+
+export { validate, loginUser, calculator, auditLog,setStockController,insertTransactionController,getUserTransactionsController,getStocksController };

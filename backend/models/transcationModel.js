@@ -1,13 +1,6 @@
 import oracledb from 'oracledb';
 import { getConnection } from '../config/db.js'; // import database connection configuration
 
-/**
- * call the stored procedure to calculate the breakeven point
- * @param {Object} connection - database connection object
- * @param {Number} strikePrice - strike price
- * @param {Number} premium - premium
- * @returns {Number} - the calculated breakeven point
- */
 const calculateBreakeven = async (connection, strategyType, currentPrice, strikePrice, premium) => {
     try {
         const result = await connection.execute(
@@ -27,14 +20,6 @@ const calculateBreakeven = async (connection, strategyType, currentPrice, strike
     }
 };
 
-/**
- * call the stored procedure to calculate the risk rate
- * @param {Object} connection - database connection object
- * @param {Number} currentPrice - current price
- * @param {Number} strikePrice - strike price
- * @param {Number} premium - premium
- * @returns {Number} - the calculated risk rate
- */
 const calculateRiskRate = async (connection, strategyType, currentPrice, strikePrice, premium) => {
     try {
         const result = await connection.execute(
@@ -54,35 +39,68 @@ const calculateRiskRate = async (connection, strategyType, currentPrice, strikeP
     }
 };
 
-/**
- * use the stored procedure to insert the transaction record
- * @param {Object} connection - database connection object
- * @param {Object} params - the parameters containing the transaction information
- */
-const insertTransaction = async (connection, params) => {
-   
-    const requiredFields = [
-        'userId',
-        'stockId',
-        'strategyType',
-        'strikePrice',
-        'premium',
-        'maturityTime',
-        'stockQuantity'
-    ];
 
-    for (const field of requiredFields) {
-        if (params[field] == null) { 
-            throw new Error(`Missing or null value for required field: ${field}`);
+const setStock = async ({ ticker, currentPrice, volatility }) => {
+    let connection;
+    try {
+        connection = await getConnection();
+
+        const result = await connection.execute(
+            `BEGIN upsert_stock(:p_ticker, :p_current_price, :p_volatility, :p_stock_id); END;`,
+            {
+                p_ticker: ticker,
+                p_current_price: currentPrice,
+                p_volatility: volatility,
+                p_stock_id: { dir: oracledb.BIND_OUT, type: oracledb.NUMBER }, // Output parameter
+            },
+            { autoCommit: true } // Commit after execution
+        );
+
+        console.log('Stock upsert successful, Stock ID:', result.outBinds.p_stock_id);
+        return result.outBinds.p_stock_id; // Return the stock ID
+    } catch (err) {
+        console.error(`Error in setStock: ${err.message}`);
+        throw err;
+    } finally {
+        if (connection) {
+            try {
+                await connection.close();
+            } catch (closeErr) {
+                console.error(`Error closing connection: ${closeErr.message}`);
+            }
         }
     }
+};
 
+
+const insertTransaction = async (params) => {
+    let connection;
     try {
+        connection = await getConnection();
+        
+        const requiredFields = [
+            'userId',
+            'stockId',
+            'strategyType',
+            'strikePrice',
+            'premium',
+            'maturityTime',
+            'stockQuantity'
+        ];
+
+        for (const field of requiredFields) {
+            if (params[field] == null) {
+                throw new Error(`Missing or null value for required field: ${field}`);
+            }
+        }
+        
         const result = await connection.execute(
-            `BEGIN transaction_pkg.insert_transaction(
-            :user_id, :stock_id, :strategy_type, :strike_price,
-            :premium, :maturity_time, :stock_quantity, :transaction_id
-        ); END;`,
+            `BEGIN 
+                transaction_pkg.insert_transaction(
+                    :user_id, :stock_id, :strategy_type, :strike_price,
+                    :premium, :maturity_time, :stock_quantity, :transaction_id
+                ); 
+            END;`,
             {
                 user_id: params.userId,
                 stock_id: params.stockId,
@@ -91,28 +109,34 @@ const insertTransaction = async (connection, params) => {
                 premium: params.premium,
                 maturity_time: params.maturityTime,
                 stock_quantity: params.stockQuantity,
-                transaction_id: { dir: oracledb.BIND_OUT, type: oracledb.NUMBER }, // get the return value
+                transaction_id: { dir: oracledb.BIND_OUT, type: oracledb.NUMBER } 
             },
             { autoCommit: true }
         );
 
         console.log('Transaction record inserted successfully, Transaction ID:', result.outBinds.transaction_id);
-        return result.outBinds.transaction_id; // return transaction_id
+        return result.outBinds.transaction_id; 
+
     } catch (err) {
         console.error(`Error in insertTransaction: ${err.message}`);
         throw err;
+    } finally {
+        if (connection) {
+            try {
+                await connection.close();
+            } catch (closeErr) {
+                console.error(`Error closing connection: ${closeErr.message}`);
+            }
+        }
     }
 };
 
 
-
-/**
- * query information
- * @param {Object} connection - database connection object
- * @param {Number} userId - user ID
- */
-const getUserTransactions = async (connection, userId) => {
+const getUserTransactions = async (userId) => {
+    let connection;
     try {
+        connection = await getConnection();
+
         const result = await connection.execute(
             `BEGIN transaction_pkg.get_user_transactions(:user_id, :result); END;`,
             {
@@ -126,22 +150,52 @@ const getUserTransactions = async (connection, userId) => {
         let row;
 
         while ((row = await resultSet.getRow())) {
-            rows.push(row); // push each row into the array
+            rows.push(row); // Push each row into the array
         }
-        await resultSet.close(); // close the cursor
+        await resultSet.close(); // Close the cursor
         console.log('User transaction records queried successfully');
-        return rows; // return the array of records
+        return rows; // Return the array of records
     } catch (err) {
         console.error(`Error in getUserTransactions: ${err.message}`);
         throw err;
+    } finally {
+        if (connection) {
+            try {
+                await connection.close();
+            } catch (closeErr) {
+                console.error(`Error closing connection: ${closeErr.message}`);
+            }
+        }
     }
 };
 
+const getStocks = async () => {
+    let connection;
+    try {
+        connection = await getConnection();
+        
+        const result = await connection.execute(
+            `SELECT * FROM stocks`
+        );
+        
+        const rows = result.rows;
 
-/**
- * calculate and store the transaction information
- * @param {Object} params - the parameters containing the transaction information
- */
+        console.log('Stocks fetched successfully:', rows);
+        return rows; 
+    } catch (err) {
+        console.error(`Error in getStocks: ${err.message}`);
+        throw err; 
+    } finally {
+        if (connection) {
+            try {
+                await connection.close();
+            } catch (closeErr) {
+                console.error(`Error closing connection: ${closeErr.message}`);
+            }
+        }
+    }
+};
+
 const calculateAndStoreTransaction = async (params) => {
     let connection;
     try {
@@ -165,26 +219,11 @@ const calculateAndStoreTransaction = async (params) => {
             params.premium
         );
         console.log('Risk rate:', riskRate);
+        
 
-        // use the stored procedure to insert the transaction record
-        const transactionId = await insertTransaction(connection, {
-            userId: params.userId,
-            stockId: params.stockId,
-            strategyType: params.strategyType,
-            strikePrice: params.strikePrice,
-            premium: params.premium,
-            maturityTime: params.maturityTime,
-            stockQuantity: params.stockQuantity,
-        });
-        console.log('New transaction ID:', transactionId);
-
-        // query and return the user transaction records
-        const userTransactions = await getUserTransactions(connection, params.userId);
-        console.log('Query user transaction records:', userTransactions);
-
-        return { breakeven, riskRate, transactionId, userTransactions }; // return the comprehensive result
+        return { breakeven, riskRate }; // return the comprehensive result
     } catch (err) {
-        console.error(`Error in calculateAndStoreTransaction: ${err.message}`);
+        console.error(`Error in calculator: ${err.message}`);
         throw err;
     } finally {
         if (connection) {
@@ -197,11 +236,6 @@ const calculateAndStoreTransaction = async (params) => {
     }
 };
 
-/**
- * Set the role for the current user and fetch audit logs
- * @param {Number} userId - The user ID to set the role and fetch logs for
- * @returns {Array} - The fetched audit logs
- */
 const setRoleAndGetAuditLogs = async (userId) => {
     let connection;
     try {
@@ -263,4 +297,4 @@ const setRoleAndGetAuditLogs = async (userId) => {
 
 
 
-export {calculateAndStoreTransaction,setRoleAndGetAuditLogs };
+export {calculateAndStoreTransaction,setRoleAndGetAuditLogs,setStock,insertTransaction,getUserTransactions,getStocks };
