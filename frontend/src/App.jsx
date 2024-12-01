@@ -44,8 +44,6 @@ function RegisterComponent() {
     );
 }
 
-
-
 function CalculateComponent() {
     const [strategyType, setStrategyType] = useState('');
     const [strikePrice, setStrikePrice] = useState('');
@@ -142,6 +140,9 @@ function InsertTransactionComponent() {
                 stockQuantity: parseInt(stockQuantity),
             });
             setResponse(res.data);
+            if (res.data.transactionId === null) {
+                alert('Operation failed');
+            }
         } catch (error) {
             console.error(error);
         }
@@ -167,7 +168,6 @@ function InsertTransactionComponent() {
         </div>
     );
 }
-
 
 function UserInfoComponent() {
     const [userId, setUserId] = useState('');
@@ -202,9 +202,6 @@ function UserInfoComponent() {
         </div>
     );
 }
-
-
-
 
 function StockListComponent() {
     const [response, setResponse] = useState(null);
